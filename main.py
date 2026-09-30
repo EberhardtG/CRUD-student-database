@@ -1,52 +1,37 @@
-"""
-WHY:
-The main application module initializes the FastAPI instance, sets up the
-database tables, and registers the CRUD endpoints that power the Student API.
-It serves as the entry point for the entire application, ensuring that the
-database layer and routing layer are fully connected before any requests are
-handled. By keeping main.py minimal and focused, the project remains easy to
-navigate, test, and maintain.
-
 DESIGN:
-1. The FastAPI app is created with a title, description, and version to provide
-   clear documentation in Swagger UI and help clients understand the purpose of
-   the API.
+1. The FastAPI app is configured with a title, description, and version to
+   provide clear API documentation through Swagger UI.
 
-2. Base.metadata.create_all(bind=engine) is executed at startup to ensure that
-   all SQLAlchemy models—including the Student model—have their corresponding
-   tables created in the SQLite database. This guarantees that CRUD operations
-   will function correctly without requiring manual migrations.
+2. Base.metadata.create_all(bind=engine) automatically creates all database
+   tables at startup, ensuring the Student model is available for CRUD
+   operations.
 
-3. The Student model is imported so SQLAlchemy is aware of its definition when
-   generating tables. Without this import, the students table would not be
-   created, even if the router is loaded.
+3. The Student model is imported so SQLAlchemy recognizes the model definition
+   during table creation.
 
-4. The CRUD router is imported from app.routers.crud_endpoints and registered
-   using app.include_router(). This modular design keeps routing logic separate
-   from application startup logic, making the project easier to extend and
-   preventing circular imports. All Student CRUD operations are defined inside
-   the crud_endpoints module, and main.py simply attaches them to the FastAPI
-   application.
+4. The student router is registered using app.include_router(), keeping route
+   definitions separate from application startup logic.
 
-Overall, this module provides a clean and minimal entry point for the Student
-API, ensuring that the database, models, and CRUD endpoints are properly
-initialized and ready for use.
+5. Custom exception handlers are registered using
+   app.add_exception_handler() to provide consistent API error responses.
+
+6. Request validation errors are formatted into a simplified JSON structure
+   that clearly identifies invalid fields and messages.
+
+
 """
 
-
-
-
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.database import Base, engine
 from app.models.student import Student
 from app.routers.crud_endpoints import router as student_router
-
+from app.exceptions import AppException
 
 # Create all database tables
 Base.metadata.create_all(bind=engine)
-
 
 app = FastAPI(
     title="Student API",
@@ -54,6 +39,52 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
+async def app_exception_handler(
+    request: Request,
+    exc: AppException
+):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "detail": exc.detail
+        }
+    )
+
+
+async def validation_handler(
+    request: Request,
+    exc: RequestValidationError
+):
+    errors = [
+        {
+            "field": " -> ".join(str(loc) for loc in error["loc"]),
+            "message": error["msg"]
+        }
+        for error in exc.errors()
+    ]
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": True,
+            "detail": "Validation failed",
+            "errors": errors
+        }
+    )
+
+
+# Register exception handlers
+app.add_exception_handler(
+    AppException,
+    app_exception_handler
+)
+
+app.add_exception_handler(
+    RequestValidationError,
+    validation_handler
+)
 
 # Include routers
 app.include_router(student_router)

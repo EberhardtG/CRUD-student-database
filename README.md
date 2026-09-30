@@ -1,77 +1,117 @@
 
-Student CRUD API
-Overview
+# **Student CRUD API – Updated README (with `exceptions.py`)**
 
-The Student CRUD API is a RESTful web application built with FastAPI, SQLAlchemy 2.0, Pydantic v2, and SQLite. The project provides a complete CRUD (Create, Read, Update, Delete) interface for managing student records while enforcing data validation, database integrity, and REST API best practices.
+## **Overview**
+The **Student CRUD API** is a RESTful web application built with **FastAPI**, **SQLAlchemy 2.0**, **Pydantic v2**, and **SQLite**. It provides a complete CRUD interface for managing student records while enforcing strong validation, database integrity, and clean REST API design.
 
-The application was developed as a course assignment to demonstrate:
+This project was developed as a course assignment to demonstrate:
 
-FastAPI endpoint development
-SQLAlchemy ORM integration
-SQLite database management
-Pydantic schema validation
-CRUD operations
-HTTP status code handling
-Swagger UI testing
-Assignment Requirements
+- FastAPI endpoint development  
+- SQLAlchemy ORM integration  
+- SQLite database management  
+- Pydantic schema validation  
+- CRUD operations  
+- HTTP status code handling  
+- Swagger UI testing  
+- Custom exception handling using FastAPI exception classes  
 
-This project satisfies all assignment requirements:
+---
 
-Student Model
+## **Assignment Requirements**
+This project satisfies all assignment requirements, now including centralized exception handling via `exceptions.py`.
 
-The Student SQLAlchemy model contains:
+---
 
-Field	Type	Descriptionid	Integer	Primary Key
-name	String	Required
-email	String	Required, Unique
-major	String	Optional
-gpa	Float	Optional, Range 0.0–4.0
-Pydantic Schemas
+## **Student Model**
+The SQLAlchemy Student model includes:
 
+| Field | Type | Description |
+|-------|-------|-------------|
+| id | Integer | Primary Key |
+| name | String | Required |
+| email | String | Required, Unique |
+| major | String | Optional |
+| gpa | Float | Optional, Range 0.0–4.0 |
+
+---
+
+## **Pydantic Schemas**
 Implemented schemas:
 
-StudentCreate
-StudentUpdate
-StudentPatch
-StudentResponse
-CRUD Endpoints
+- `StudentCreate`
+- `StudentUpdate`
+- `StudentPatch`
+- `StudentResponse`
 
-Implemented all required endpoints:
+---
 
-Method	Endpoint	DescriptionPOST	/students	Create a student
-GET	/students	List students with filters
-GET	/students/{id}	Retrieve one student
-PUT	/students/{id}	Full replacement update
-PATCH	/students/{id}	Partial update
-DELETE	/students/{id}	Delete student
-Additional Requirements
+## **CRUD Endpoints**
+All required endpoints are implemented:
 
-✅ Duplicate email handling (409 Conflict)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/students` | Create a student |
+| GET | `/students` | List students with filters |
+| GET | `/students/{id}` | Retrieve one student |
+| PUT | `/students/{id}` | Full replacement update |
+| PATCH | `/students/{id}` | Partial update |
+| DELETE | `/students/{id}` | Delete student |
 
-✅ Filtering by major
+---
 
-✅ Filtering by minimum GPA
+## **Additional Requirements**
+All assignment requirements are met:
 
-✅ 404 handling for missing students
+- ✅ Duplicate email handling (409 Conflict)  
+- ✅ Filtering by major  
+- ✅ Filtering by minimum GPA  
+- ✅ 404 handling for missing students  
+- ✅ PATCH using `model_dump(exclude_unset=True)`  
+- ✅ Delete endpoint returns a success message  
+- ✅ Complete CRUD cycle tested in Swagger UI  
+- ✅ **Centralized custom exception handling via `exceptions.py`**
 
-✅ PATCH implementation using:
+---
 
-model_dump(exclude_unset=True)
+## **New Module: `exceptions.py`**
+A new module, **`exceptions.py`**, was added to centralize and standardize error responses across the API.
 
+### **Purpose**
+- Provide reusable exception classes  
+- Improve consistency of error messages  
+- Reduce duplication in CRUD endpoint logic  
+- Align with FastAPI best practices  
 
-✅ Delete endpoint returning a success message dictionary
+### **Implemented Custom Exceptions**
+Examples of exceptions defined in this module:
 
-✅ Complete CRUD cycle tested in Swagger UI
+- `StudentNotFoundException` → returns **404 Not Found**
+- `DuplicateEmailException` → returns **409 Conflict**
+- `InvalidGPAException` → returns **422 Unprocessable Entity**
 
-Technologies Used
-Python 3.x
-FastAPI
-SQLAlchemy 2.0
-SQLite
-Pydantic v2
-Uvicorn
-Swagger UI/OpenAPI
-Project Structure
+These exceptions are raised inside CRUD operations and automatically converted into structured JSON error responses.
+
+### **Benefits**
+- Cleaner router code  
+- Centralized error definitions  
+- More readable and maintainable project structure  
+
+---
+
+## **Technologies Used**
+- Python 3.x  
+- FastAPI  
+- SQLAlchemy 2.0  
+- SQLite  
+- Pydantic v2  
+- Uvicorn  
+- Swagger UI / OpenAPI  
+
+---
+
+## **Project Structure (Updated)**
+
+```
 project/
 │
 ├── app/
@@ -83,300 +123,193 @@ project/
 │   ├── routers/
 │   │   └── crud_endpoints.py
 │   │
-│   └── schemas/
-│       ├── studentcreate.py
-│       ├── studentupdate.py
-│       ├── studentpatch.py
-│       └── studentresponse.py
+│   ├── schemas/
+│   │   ├── studentcreate.py
+│   │   ├── studentupdate.py
+│   │   ├── studentpatch.py
+│   │   └── studentresponse.py
+│   │
+│   ├── exceptions.py   ← **NEW**
+│   │
+│   └── main.py
 │
-├── main.py
 ├── requirements.txt
 └── students.db
+```
 
-Installation
-Clone the repository
-git clone <repository-url>
+---
+
+## **Installation**
+
+### **Clone the repository**
+```
+git clone <repo-url>
 cd student-api
+```
 
-Create a virtual environment
+### **Create a virtual environment**
 
-Windows:
-
+**Windows**
+```
 python -m venv .venv
-
-
-Activate:
-
 .venv\Scripts\activate
+```
 
-Install dependencies
+### **Install dependencies**
+```
 pip install -r requirements.txt
+```
 
-Running the Application
+---
+
+## **Running the Application**
 
 Start the FastAPI server:
 
+```
 uvicorn main:app --reload
+```
 
+- Server: [http://127.0.0.1:8000](http://127.0.0.1:8000)  
+- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)  
+- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)  
 
-Server:
+---
 
-http://127.0.0.1:8000
+## **Database Design**
 
+### **Student Table – `students`**
 
-Swagger UI:
+| Column | Type | Constraints |
+|--------|-------|-------------|
+| id | Integer | Primary Key |
+| name | String(75) | Required |
+| email | String(100) | Required, Unique |
+| major | String(50) | Optional |
+| gpa | Float | Optional |
+| gpa_range | CheckConstraint | 0.0 ≤ gpa ≤ 4.0 |
 
-http://127.0.0.1:8000/docs
+Validation is enforced at both:
 
+- Pydantic layer  
+- Database constraint layer  
 
-ReDoc Documentation:
+---
 
-http://127.0.0.1:8000/redoc
+## **API Endpoints**
 
-Database Design
-
-The application uses SQLite for persistent storage.
-
-Student Table
-students
-
-Column	Type	Constraintsid	Integer	Primary Key
-name	String(75)	Required
-email	String(100)	Unique, Required
-major	String(50)	Optional
-gpa	Float	Optional
-gpa_range	CheckConstraint	0.0 ≤ GPA ≤ 4.0
-
-The GPA range is enforced at both:
-
-Pydantic validation layer
-Database constraint layer
-
-This provides defense-in-depth validation.
-
-API Endpoints
-Create Student
-
-POST /students
-
+### **Create Student — POST `/students`**
 Request:
-
+```json
 {
   "name": "John Doe",
   "email": "john@example.com",
   "major": "Computer Science",
   "gpa": 3.8
 }
+```
 
+Duplicate email → **409 Conflict**  
+Handled by `DuplicateEmailException`.
 
-Success:
+---
 
-201 Created
+### **List Students — GET `/students`**
+Supports filters:
 
+- `?major=Computer Science`
+- `?min_gpa=3.5`
+- Combined filters supported
 
-Duplicate email:
+---
 
-409 Conflict
+### **Retrieve Student — GET `/students/{id}`**
+Missing student → **404 Not Found**  
+Handled by `StudentNotFoundException`.
 
+---
 
-Response:
+### **Full Update — PUT `/students/{id}`**
+Validates uniqueness and GPA range.
 
-{
-  "detail": "A student with this email already exists."
-}
+---
 
-List Students
-
-GET /students
-
-Returns all students.
-
-Example:
-
-GET /students
-
-Filter By Major
-GET /students?major=Computer Science
-
-Filter By Minimum GPA
-GET /students?min_gpa=3.5
-
-Combined Filters
-GET /students?major=Computer Science&min_gpa=3.5
-
-Retrieve Student
-
-GET /students/{id}
-
-Example:
-
-GET /students/1
-
-
-Success:
-
-200 OK
-
-
-Missing student:
-
-404 Not Found
-
-
-Response:
-
-{
-  "detail": "Student not found."
-}
-
-Full Update
-
-PUT /students/{id}
-
-Example:
-
-{
-  "name": "Jane Smith",
-  "email": "jane@example.com",
-  "major": "Mathematics",
-  "gpa": 3.7
-}
-
-
-Success:
-
-200 OK
-
-
-Possible errors:
-
-404 Not Found
-
-409 Conflict
-
-Partial Update
-
-PATCH /students/{id}
-
-Example:
-
-{
-  "gpa": 3.9
-}
-
-
-Only supplied fields are updated.
-
-Implementation uses:
-
+### **Partial Update — PATCH `/students/{id}`**
+Uses:
+```python
 model_dump(exclude_unset=True)
+```
 
+---
 
-to preserve existing values for omitted fields.
-
-Delete Student
-
-DELETE /students/{id}
-
+### **Delete Student — DELETE `/students/{id}`**
 Success:
+```json
+{ "message": "Student deleted successfully", "id": 1 }
+```
 
-{
-  "message": "Student deleted successfully",
-  "id": 1
-}
+Missing student → **404 Not Found**
 
+---
 
-Missing student:
+## **Validation & Error Handling**
 
-{
-  "detail": "Student not found."
-}
+### **HTTP Status Codes**
+| Code | Meaning |
+|------|---------|
+| 200 | OK |
+| 201 | Created |
+| 404 | Student Not Found |
+| 409 | Duplicate Email |
+| 422 | Validation Error |
 
-Validation and Error Handling
-HTTP Status Codes
-Code	Meaning200	Successful Request
-201	Student Created
-404	Student Not Found
-409	Duplicate Email
-422	Validation Error
-Validation Rules
+### **Validation Rules**
+- **Name:** 1–75 chars  
+- **Email:** required, unique, 3–100 chars  
+- **Major:** optional, max 50 chars  
+- **GPA:** 0.0–4.0  
 
-Name:
+---
 
-1-75 characters
+## **Testing**
+All endpoints tested via Swagger UI:
 
+- Create  
+- Retrieve  
+- List  
+- Filter  
+- PUT update  
+- PATCH update  
+- Delete  
+- Error handling  
+- Custom exceptions verified  
 
-Email:
+---
 
-Required
-Unique
-3-100 characters
+## **Key Design Decisions**
 
+### **Centralized Exception Handling**
+`exceptions.py` ensures consistent error responses and cleaner router logic.
 
-Major:
-
-Optional
-Maximum 50 characters
-
-
-GPA:
-
-0.0 - 4.0
-
-Testing
-
-All endpoints were tested using FastAPI Swagger UI.
-
-CRUD workflow tested:
-
-Create student
-Retrieve student
-List students
-Filter students
-Update student using PUT
-Update student using PATCH
-Delete student
-Verify deletion
-Verify error handling
-Key Design Decisions
-SQLAlchemy 2.0 Typed ORM
-
-The Student model uses modern SQLAlchemy 2.0 typing:
-
+### **SQLAlchemy 2.0 Typed ORM**
+Uses modern typing:
+```python
 Mapped[str]
 mapped_column()
+```
 
+### **Schema Separation**
+Different schemas for create, update, patch, and response.
 
-for improved readability and maintainability.
+### **Duplicate Email Protection**
+Handled before DB commit using custom exception.
 
-Schema Separation
+### **PATCH Support**
+Only updates provided fields.
 
-Separate schemas were created for:
+---
 
-Create operations
-Full updates
-Partial updates
-Responses
+## **Author**
+**Grant Eberhardt**
 
-This ensures each operation receives only the fields it requires.
-
-Duplicate Email Protection
-
-Email uniqueness is validated before database operations:
-
-409 Conflict
-
-
-is returned instead of allowing a database exception to occur.
-
-PATCH Support
-
-PATCH requests update only supplied fields, preserving existing values and aligning with REST semantics.
-
-Author
-
-Grant Eberhardt
-
-Student CRUD API Assignment
-
-Built with FastAPI, SQLAlchemy 2.0, Pydantic v2, and SQLite.
+---

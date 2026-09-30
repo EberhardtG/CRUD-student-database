@@ -1,3 +1,11 @@
+"""
+WHY:
+The main module serves as the entry point for the Student API. It initializes
+the FastAPI application, creates database tables, registers API routes, and
+configures centralized exception handling. Keeping these responsibilities in
+one location ensures the application starts consistently and remains easy to
+maintain.
+
 DESIGN:
 1. The FastAPI app is configured with a title, description, and version to
    provide clear API documentation through Swagger UI.

@@ -1,49 +1,31 @@
 """
 WHY:
 The Student router provides the complete CRUD interface for managing student
-records in the API. It connects validated Pydantic schemas with the SQLAlchemy
-Student model and ensures that all operations follow REST conventions, enforce
-data integrity, and return predictable, well‑structured responses. Each endpoint
-is designed to be explicit, safe, and easy to test through Swagger UI.
+records. It connects FastAPI routes, Pydantic schemas, and the SQLAlchemy
+Student model to deliver validated, database-backed operations while ensuring
+consistent error handling through custom application exceptions.
 
 DESIGN:
-1. The POST /students endpoint creates new student records using the
-   StudentCreate schema. It includes a required duplicate‑email check, returning
-   a 409 Conflict when an email already exists. This prevents accidental
-   duplication and enforces the unique constraint at the API layer before the
-   database rejects the insert.
+1. The POST endpoint creates student records and prevents duplicate email
+   addresses by raising DuplicateError when a conflict is detected.
 
-2. The GET /students endpoint supports optional filtering by major and minimum
-   GPA. These filters allow clients to retrieve targeted subsets of students
-   without needing additional endpoints. The query is built incrementally,
-   ensuring that filters are applied only when provided.
+2. The GET endpoints support student retrieval, filtering, and lookup by ID,
+   raising NotFoundError when a requested student does not exist.
 
-3. The GET /students/{id} endpoint retrieves a single student by primary key.
-   It returns a clear 404 Not Found when the student does not exist, ensuring
-   predictable lookup behavior and preventing ambiguous responses.
+3. The PUT endpoint performs full replacement updates using the StudentUpdate
+   schema and validates email uniqueness before applying changes.
 
-4. The PUT /students/{id} endpoint performs a full replacement update using the
-   StudentUpdate schema. Required fields (name and email) must always be present.
-   The endpoint also checks for duplicate emails when the email is changed,
-   returning a 409 Conflict when necessary. All fields are overwritten to match
-   REST semantics for PUT.
+4. The PATCH endpoint supports partial updates using
+   model_dump(exclude_unset=True), ensuring that only supplied fields are
+   modified.
 
-5. The PATCH /students/{id} endpoint supports partial updates using the
-   StudentPatch schema. Only fields explicitly provided by the client are
-   updated, using model_dump(exclude_unset=True) to avoid overwriting existing
-   values. A duplicate‑email check is performed only when the email field is
-   included in the patch. This design ensures flexible updates while preserving
-   data integrity.
+5. The DELETE endpoint removes student records and returns a confirmation
+   message upon successful deletion.
 
-6. The DELETE /students/{id} endpoint removes a student record and returns a
-   success message dictionary instead of an empty response. This provides clear
-   feedback to clients and aligns with the assignment requirement for a
-   descriptive deletion response.
+6. Custom exceptions replace direct HTTPException usage, allowing all error
+   responses to be handled consistently through centralized exception handlers.
 
-Overall, this router provides a complete, validated, and database‑backed CRUD
-interface for student management. It demonstrates proper FastAPI patterns,
-strong schema integration, SQLAlchemy 2.0 typed‑ORM usage, and reliable error
-handling across all endpoints.
+
 """
 
 
@@ -51,6 +33,7 @@ handling across all endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models.student import Student
@@ -58,6 +41,7 @@ from app.schemas.studentcreate import StudentCreate
 from app.schemas.studentupdate import StudentUpdate
 from app.schemas.studentpatch import StudentPatch
 from app.schemas.studentresponse import StudentResponse
+from app.exceptions import AppException, NotFoundError,DuplicateError,AppValidationError
 
 router = APIRouter(prefix="/students", tags=["Students"])
 
@@ -70,9 +54,8 @@ def create_student(student: StudentCreate, db: Session = Depends(get_db)):
     # Duplicate email check
     existing = db.query(Student).filter(Student.email == student.email).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A student with this email already exists."
+        raise DuplicateError(
+           "A student with this email already exists."
         )
 
     db_student = Student(**student.model_dump())
@@ -109,9 +92,8 @@ def list_students(
 def get_student(student_id: int, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found."
+        raise NotFoundError(
+            "Student not found."
         )
     return student
 
@@ -123,19 +105,17 @@ def get_student(student_id: int, db: Session = Depends(get_db)):
 def update_student(student_id: int, update: StudentUpdate, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found."
-        )
+       raise NotFoundError(
+        "Student not found."
+    )
 
     # Duplicate email check (only if changed)
     if update.email != student.email:
         existing = db.query(Student).filter(Student.email == update.email).first()
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A student with this email already exists."
-            )
+            raise DuplicateError(
+            "A student with this email already exists."
+)
 
     for field, value in update.model_dump().items():
         setattr(student, field, value)
@@ -152,9 +132,8 @@ def update_student(student_id: int, update: StudentUpdate, db: Session = Depends
 def patch_student(student_id: int, patch: StudentPatch, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found."
+           raise NotFoundError(
+            "Student not found."
         )
 
     patch_data = patch.model_dump(exclude_unset=True)
@@ -162,11 +141,10 @@ def patch_student(student_id: int, patch: StudentPatch, db: Session = Depends(ge
     # Duplicate email check (only if email is being patched)
     if "email" in patch_data:
         existing = db.query(Student).filter(Student.email == patch_data["email"]).first()
-        if existing and existing.id != student.id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A student with this email already exists."
-            )
+        if existing:
+            raise DuplicateError(
+                "A student with this email already exists."
+        )
 
     for field, value in patch_data.items():
         setattr(student, field, value)
@@ -183,9 +161,8 @@ def patch_student(student_id: int, patch: StudentPatch, db: Session = Depends(ge
 def delete_student(student_id: int, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if student is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found."
+           raise NotFoundError(
+            "Student not found."
         )
 
     db.delete(student)

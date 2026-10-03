@@ -1,34 +1,55 @@
 
 
-# **Student CRUD API – Updated README (with Authentication & Custom Exceptions)**
+# **Student CRUD API – Updated README (with Authentication, Background Tasks & Custom Exceptions)**
 
 ## **Overview**
-The **Student CRUD API** is a RESTful web application built with **FastAPI**, **SQLAlchemy 2.0**, **Pydantic v2**, and **SQLite**. It provides a complete CRUD interface for managing student records, along with a secure authentication system using hashed passwords and JWT access tokens.
+The **Student CRUD API** is a modular FastAPI application that provides:
 
-This project was developed as a course assignment to demonstrate:
+- Full CRUD operations for student records  
+- A secure authentication system using hashed passwords and JWT tokens  
+- Simulated background processing for report generation and notifications  
+- Centralized custom exception handling  
+- Clean separation of routers and subsystems  
 
-- FastAPI endpoint development  
-- SQLAlchemy 2.0 typed ORM modeling  
-- SQLite database integration  
-- Pydantic v2 schema validation  
-- JWT authentication  
-- Protected routes using FastAPI dependencies  
-- Custom exception handling  
-- Clean modular application structure  
+The project demonstrates modern FastAPI design patterns using:
+
+- **FastAPI**  
+- **SQLAlchemy 2.0 typed ORM**  
+- **Pydantic v2**  
+- **SQLite**  
+- **JWT authentication**  
+- **BackgroundTasks** for asynchronous simulation  
 
 ---
 
 ## **Assignment Requirements**
 This project satisfies all assignment requirements, including:
 
+### **Student CRUD**
 - Full CRUD operations  
-- Proper schema separation (Create, Update, Patch, Response)  
 - Filtering by major and minimum GPA  
 - Duplicate email protection  
-- 404 handling for missing students  
 - PATCH using `model_dump(exclude_unset=True)`  
-- Centralized custom exceptions  
-- Authentication system with registration, login, and protected endpoints  
+- 404 handling for missing students  
+- Clean schema separation (Create, Update, Patch, Response)
+
+### **Authentication**
+- Registration  
+- Login  
+- JWT token issuance  
+- Protected routes  
+- Password hashing using `pbkdf2_sha256`
+
+### **Custom Exceptions**
+- Centralized error classes  
+- Consistent JSON error responses  
+- Cleaner router logic
+
+### **Background Tasks**
+- Asynchronous report generation  
+- Status transitions (pending → processing → complete)  
+- Notification scheduling  
+- In‑memory logging of notifications  
 
 ---
 
@@ -60,22 +81,19 @@ The API includes a complete authentication flow using JWT tokens.
 | GET | `/auth/dashboard` | Example protected endpoint |
 
 ### **Password Hashing**
-The API uses:
+Uses:
 
 ```
 pbkdf2_sha256
 ```
 
-instead of bcrypt due to Windows runtime instability with bcrypt’s native C extensions.  
-This ensures secure, stable hashing across all environments.
+instead of bcrypt to avoid Windows C‑extension issues.
 
 ### **JWT Tokens**
 - Signed using HS256  
-- Include an expiration timestamp  
-- Store the user ID in the `sub` claim  
-- Used via the `Authorization: Bearer <token>` header  
-
-Protected endpoints rely on `get_current_user` to validate and decode tokens.
+- Include expiration  
+- Store user ID in `sub` claim  
+- Used via `Authorization: Bearer <token>`  
 
 ---
 
@@ -90,14 +108,16 @@ Implemented schemas:
 - `LoginRequest`  
 - `UserResponse`  
 - `TokenResponse`  
+- `ReportRequest` (for background tasks)
 
-Schemas use Pydantic v2 features such as `model_dump(exclude_unset=True)` and `from_attributes=True`.
+Schemas use Pydantic v2 features such as:
+
+- `model_dump(exclude_unset=True)`  
+- `from_attributes=True`  
 
 ---
 
 ## **CRUD Endpoints**
-All required endpoints are implemented:
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/students` | Create a student |
@@ -109,56 +129,53 @@ All required endpoints are implemented:
 
 ---
 
-## **Additional Requirements**
-All assignment requirements are met:
+## **Background Task System (`reports.py`)**
+The `reports.py` module provides simulated asynchronous processing using FastAPI’s `BackgroundTasks`.
 
-- ✔ Duplicate email handling (409 Conflict)  
-- ✔ Filtering by major  
-- ✔ Filtering by minimum GPA  
-- ✔ 404 handling for missing students  
-- ✔ PATCH using `model_dump(exclude_unset=True)`  
-- ✔ Delete endpoint returns a success message  
-- ✔ Complete CRUD cycle tested in Swagger UI  
-- ✔ **Centralized custom exception handling via `exceptions.py`**  
-- ✔ **JWT authentication with protected routes**  
+### **Features**
+- In‑memory `reports` store  
+- In‑memory `notification_log`  
+- Artificial delays using `time.sleep()`  
+- Status transitions for reports  
+- Notification scheduling  
+- JSON request body via `ReportRequest`  
+
+### **Endpoints**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/reports` | Start report generation (async) |
+| GET | `/reports/{id}` | Retrieve report status |
+| POST | `/reports/notifications` | Schedule a notification |
+| GET | `/reports/notifications/log` | View notification history |
+
+### **Report Lifecycle**
+1. `pending`  
+2. `processing`  
+3. `complete`  
+
+A text file is written to disk to simulate a generated report artifact.
 
 ---
 
 ## **Custom Exceptions (`exceptions.py`)**
-The `exceptions.py` module centralizes reusable error classes:
+Centralized error classes:
 
-- `NotFoundError` → **404 Not Found**  
-- `DuplicateError` → **409 Conflict**  
-- `AppValidationError` → **422 Unprocessable Entity**  
+- `NotFoundError` → 404  
+- `DuplicateError` → 409  
+- `AppValidationError` → 422  
 - `AppException` → Base class  
 
-These exceptions are raised inside routers and converted into structured JSON responses by handlers in `main.py`.
-
-### **Benefits**
-- Cleaner router code  
-- Consistent error formatting  
-- Centralized error definitions  
-- Better maintainability  
+Handled in `main.py` for consistent JSON formatting.
 
 ---
 
-## **Technologies Used**
-- Python 3.x  
-- FastAPI  
-- SQLAlchemy 2.0  
-- SQLite  
-- Pydantic v2  
-- Uvicorn  
-- Swagger UI / OpenAPI  
-
----
-
-## **Project Structure (Updated)**
+## **Updated Project Structure**
 
 ```
 project/
 │
 ├── app/
+│   ├── main.py
 │   ├── database.py
 │   │
 │   ├── models/
@@ -166,7 +183,8 @@ project/
 │   │
 │   ├── routers/
 │   │   ├── students.py
-│   │   └── auth.py
+│   │   ├── auth.py
+│   │   └── reports.py
 │   │
 │   ├── schemas/
 │   │   ├── studentcreate.py
@@ -179,26 +197,43 @@ project/
 │   └── auth.py
 │
 ├── requirements.txt
-└── students.db
+└── students2.db
 ```
+
+---
+
+## **Updated `main.py` Wiring**
+Routers are mounted cleanly:
+
+```python
+app.include_router(student_router)
+app.include_router(auth_router)
+app.include_router(reports_router, prefix="/reports", tags=["Reports"])
+```
+
+This ensures:
+
+- Student endpoints → `/students/...`  
+- Auth endpoints → `/auth/...`  
+- Report endpoints → `/reports/...`  
 
 ---
 
 ## **Installation**
 
-### **Clone the repository**
+### Clone the repository
 ```
 git clone <repo-url>
 cd student-api
 ```
 
-### **Create a virtual environment**
+### Create a virtual environment
 ```
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-### **Install dependencies**
+### Install dependencies
 ```
 pip install -r requirements.txt
 ```
@@ -206,152 +241,41 @@ pip install -r requirements.txt
 ---
 
 ## **Running the Application**
-
-Start the FastAPI server:
-
 ```
 uvicorn app.main:app --reload
 ```
 
-- Server: [http://127.0.0.1:8000](http://127.0.0.1:8000)  
-- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)  
-- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)  
-
----
-
-## **Database Design**
-
-### **Student Table – `students`**
-
-| Column | Type | Constraints |
-|--------|-------|-------------|
-| id | Integer | Primary Key |
-| username | String(75) | Required, Unique |
-| email | String(100) | Required, Unique |
-| hashed_password | String | Required |
-| major | String(50) | Optional |
-| gpa | Float | Optional |
-| gpa_range | CheckConstraint | 0.0 ≤ gpa ≤ 4.0 |
-
-Validation is enforced at both:
-
-- Pydantic layer  
-- Database constraint layer  
-
----
-
-## **API Endpoints**
-
-### **Create Student — POST `/students`**
-Duplicate email → **409 Conflict**  
-Handled by `DuplicateError`.
-
----
-
-### **List Students — GET `/students`**
-Supports filters:
-
-- `?major=Computer Science`
-- `?min_gpa=3.5`
-
----
-
-### **Retrieve Student — GET `/students/{id}`**
-Missing student → **404 Not Found**  
-Handled by `NotFoundError`.
-
----
-
-### **Full Update — PUT `/students/{id}`**
-Validates uniqueness and GPA range.
-
----
-
-### **Partial Update — PATCH `/students/{id}`**
-Uses:
-
-```python
-model_dump(exclude_unset=True)
-```
-
----
-
-### **Delete Student — DELETE `/students/{id}`**
-Returns:
-
-```json
-{ "message": "Student deleted successfully", "id": 1 }
-```
-
----
-
-## **Validation & Error Handling**
-
-### **HTTP Status Codes**
-| Code | Meaning |
-|------|---------|
-| 200 | OK |
-| 201 | Created |
-| 404 | Student Not Found |
-| 409 | Duplicate Email |
-| 422 | Validation Error |
-
-### **Validation Rules**
-- **Username:** 1–75 chars, unique  
-- **Email:** required, unique, 3–100 chars  
-- **Major:** optional, max 50 chars  
-- **GPA:** 0.0–4.0  
+- Swagger UI → [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)  
+- ReDoc → [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)  
 
 ---
 
 ## **Testing**
 All endpoints tested via Swagger UI:
 
-- Register user  
-- Log in  
-- Authorize with JWT  
-- Access protected endpoints  
-- Create student  
-- Retrieve student  
-- List students  
-- Filter students  
-- PUT update  
-- PATCH update  
-- Delete student  
-- Error handling  
-- Custom exceptions verified  
+- Authentication flow  
+- Protected routes  
+- Student CRUD  
+- Filtering  
+- PATCH behavior  
+- Custom exceptions  
+- Background report generation  
+- Notification scheduling  
+- Notification log retrieval  
 
 ---
 
 ## **Key Design Decisions**
-
-### **Centralized Exception Handling**
-`exceptions.py` ensures consistent error responses and cleaner router logic.
-
-### **SQLAlchemy 2.0 Typed ORM**
-Uses modern typing:
-
-```python
-Mapped[str]
-mapped_column()
-```
-
-### **Schema Separation**
-Different schemas for create, update, patch, and response.
-
-### **Duplicate Email Protection**
-Handled before DB commit using custom exceptions.
-
-### **PATCH Support**
-Only updates provided fields.
-
-### **JWT Authentication**
-Secure login and protected routes using `get_current_user`.
+- Centralized exception handling  
+- SQLAlchemy 2.0 typed ORM  
+- Clean schema separation  
+- BackgroundTasks for async simulation  
+- In‑memory stores for easy testing  
+- Modular router organization  
+- JWT authentication for secure access  
 
 ---
 
 ## **Author**
 **Grant Eberhardt**
-
----
 

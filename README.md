@@ -6,7 +6,7 @@ The **Student CRUD API** is a modular FastAPI application that provides:
 
 - Full CRUD operations for student records  
 - A secure authentication system using hashed passwords and JWT tokens  
-- Simulated background processing for report generation and notifications  
+- Background task simulation for report generation and notifications  
 - Centralized custom exception handling  
 - Security enhancements including CORS hardening, rate limiting, and input sanitization  
 - Clean separation of routers, schemas, models, and subsystems  
@@ -59,9 +59,8 @@ The project demonstrates modern FastAPI design patterns using:
 
 # **Security Enhancements**
 
-## **CORS Hardening (main.py)**
-
-The application uses strict CORS configuration:
+## **CORS Hardening**
+Strict CORS configuration restricts API usage to trusted frontends:
 
 ```python
 app.add_middleware(
@@ -73,62 +72,19 @@ app.add_middleware(
 )
 ```
 
-### **Why this matters**
-- Prevents unauthorized cross‑origin access  
-- Restricts API usage to trusted frontends  
-- Reduces attack surface compared to wildcard CORS  
+## **Rate‑Limiting Middleware**
+A simple global rate limiter:
 
----
-
-## **Custom Rate‑Limiting Middleware (main.py)**
-
-A simple, assignment‑compliant rate limiter tracks request timestamps per IP:
-
-- Allows **10 requests per minute**
+- Allows **10 requests per minute per IP**
 - Returns **429 Too Many Requests** when exceeded
-- Applies globally to all endpoints
 
-### **Testing**
-Send any endpoint (e.g., `/students`) 11 rapid requests → expect:
-
-```json
-{"detail": "Too Many Requests"}
-```
-
----
-
-## **Input Sanitization (StudentCreate Schema)**
-
-The `StudentCreate` schema sanitizes:
+## **Input Sanitization**
+The `StudentCreate` schema strips HTML tags and whitespace from:
 
 - `username`
 - `major`
 
-Sanitization removes:
-
-- HTML tags (including `<script>`)  
-- Leading/trailing whitespace  
-
-### **Testing**
-Submit:
-
-```json
-{
-  "username": "<script>alert('x')</script>  Grant",
-  "email": "test@example.com",
-  "major": "  <b>CS</b> "
-}
-```
-
-Expect sanitized output:
-
-```json
-{
-  "username": "Grant",
-  "email": "test@example.com",
-  "major": "CS"
-}
-```
+This prevents stored XSS and ensures clean data.
 
 ---
 
@@ -142,7 +98,7 @@ Expect sanitized output:
 | major     | String(50)   | Optional |
 | gpa       | Float        | Optional, Range 0.0–4.0 |
 
-A `CheckConstraint` ensures GPA values remain within the valid academic range.
+A `CheckConstraint` ensures GPA values remain valid.
 
 ---
 
@@ -151,25 +107,18 @@ A `CheckConstraint` ensures GPA values remain within the valid academic range.
 ### **Endpoints**
 | Method | Endpoint        | Description |
 |--------|------------------|-------------|
-| POST   | `/auth/register` | Create a new user account |
+| POST   | `/auth/register` | Create a new user |
 | POST   | `/auth/token`    | Log in and receive a JWT |
-| GET    | `/auth/me`       | Retrieve the authenticated user |
-| GET    | `/auth/dashboard`| Example protected endpoint |
+| GET    | `/auth/me`       | Retrieve authenticated user |
+| GET    | `/auth/dashboard`| Example protected route |
 
 ### **Password Hashing**
-Uses:
-
-```
-pbkdf2_sha256
-```
-
-to avoid Windows bcrypt C‑extension issues.
+Uses `pbkdf2_sha256` for cross‑platform compatibility.
 
 ### **JWT Tokens**
-- Signed using HS256  
-- Include expiration  
-- Store user ID in `sub` claim  
-- Used via `Authorization: Bearer <token>`  
+- HS256 signing  
+- Expiration included  
+- User ID stored in `sub` claim  
 
 ---
 
@@ -177,10 +126,10 @@ to avoid Windows bcrypt C‑extension issues.
 
 Implemented schemas:
 
-- `StudentCreate` (sanitized input)  
-- `StudentUpdate` (full replacement)  
-- `StudentPatch` (partial update)  
-- `StudentResponse` (ORM → Pydantic)  
+- `StudentCreate`  
+- `StudentUpdate`  
+- `StudentPatch`  
+- `StudentResponse`  
 - `UserCreate`  
 - `LoginRequest`  
 - `UserResponse`  
@@ -201,17 +150,17 @@ Schemas use Pydantic v2 features:
 | POST   | `/students`           | Create a student |
 | GET    | `/students`           | List students with filters |
 | GET    | `/students/{id}`      | Retrieve one student |
-| PUT    | `/students/{id}`      | Full replacement update |
+| PUT    | `/students/{id}`      | Full update |
 | PATCH  | `/students/{id}`      | Partial update |
 | DELETE | `/students/{id}`      | Delete student |
 
 ---
 
-# **Background Task System (`reports.py`)**
+# **Background Task System**
 
 ### **Features**
-- In‑memory `reports` store  
-- In‑memory `notification_log`  
+- In‑memory report store  
+- In‑memory notification log  
 - Artificial delays using `time.sleep()`  
 - Status transitions  
 - Notification scheduling  
@@ -235,7 +184,7 @@ Centralized error classes:
 - `AppValidationError` → 422  
 - `AppException` → Base class  
 
-Handled in `main.py` for consistent JSON formatting.
+Handled globally for consistent JSON formatting.
 
 ---
 
@@ -247,24 +196,15 @@ project/
 ├── app/
 │   ├── main.py
 │   ├── database.py
-│   │
 │   ├── models/
-│   │   └── student.py
-│   │
 │   ├── routers/
-│   │   ├── crud_endpoints.py
-│   │   ├── auth.py
-│   │   └── reports.py
-│   │
 │   ├── schemas/
-│   │   ├── studentcreate.py
-│   │   ├── studentupdate.py
-│   │   ├── studentpatch.py
-│   │   ├── studentresponse.py
-│   │   └── auth.py
-│   │
 │   ├── exceptions.py
 │   └── auth.py
+│
+├── app/tests/
+│   ├── conftest.py
+│   └── test_students.py
 │
 ├── requirements.txt
 └── students.db
@@ -278,24 +218,41 @@ project/
 uvicorn app.main:app --reload
 ```
 
-- Swagger UI → [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)  
-- ReDoc → [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)  
+Swagger UI → [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)  
+ReDoc → [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)  
 
 ---
 
-# **Testing**
+# **Testing Suite**
 
-- Authentication flow  
-- Protected routes  
-- Student CRUD  
-- Filtering  
-- PATCH behavior  
-- Custom exceptions  
-- Background report generation  
-- Notification scheduling  
-- Notification log retrieval  
-- Rate‑limiting behavior  
-- Sanitization behavior  
+The project includes a full pytest suite validating Student CRUD behavior, error handling, and input validation. Tests run against an isolated SQLite test database using FastAPI’s dependency‑override system.
+
+### **Coverage**
+- Creating students (valid + invalid)  
+- Listing students  
+- Fetching by ID (valid + nonexistent)  
+- Partial updates (PATCH)  
+- Deleting students  
+- Duplicate email protection  
+- Validation errors (422)  
+
+### **Test Isolation**
+- Dedicated SQLite test DB  
+- Overridden `get_db` dependency  
+- Automatic table creation/teardown  
+- Rate‑limiting middleware disabled during tests  
+
+### **Run Tests**
+
+```
+pytest -v
+```
+
+Expected:
+
+```
+8 passed
+```
 
 ---
 
@@ -307,13 +264,13 @@ uvicorn app.main:app --reload
 - BackgroundTasks for async simulation  
 - In‑memory stores for easy testing  
 - Modular router organization  
-- JWT authentication for secure access  
+- JWT authentication  
 - CORS hardening  
 - Custom rate limiting  
 - Input sanitization  
+- Full pytest suite for CRUD validation  
 
 ---
 
 # **Author**
 **Grant Eberhardt**
-

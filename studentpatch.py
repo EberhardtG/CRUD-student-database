@@ -2,26 +2,30 @@
 WHY:
 The StudentPatch schema supports partial updates to student records. It allows
 clients to modify only the fields they want without needing to resend the entire
-student object. This aligns with the PATCH semantics required in the assignment.
+student object. This aligns with proper PATCH semantics and keeps update logic
+lightweight and flexible.
 
 DESIGN:
 1. All fields are optional, allowing clients to update any combination of
-   name, email, major, or gpa without providing the full record.
+   username, email, major, or gpa without providing the full record. This makes
+   PATCH requests ideal for small, targeted changes.
 
-2. Length constraints for name, email, and major match the SQLAlchemy model,
-   ensuring that partial updates remain consistent with database rules.
+2. Length constraints for username, email, and major match the SQLAlchemy model,
+   ensuring that partial updates remain consistent with database rules and
+   preventing invalid data from being persisted.
 
-3. The gpa field includes validation for the 0.0–4.0 range, preventing invalid
-   academic values even during partial updates.
+3. The gpa field includes validation for the 0.0–4.0 academic range, preventing
+   invalid GPA values even during partial updates.
 
 4. When used with model_dump(exclude_unset=True), only fields explicitly
-   provided by the client are included in the update dictionary, ensuring clean
-   and predictable PATCH behavior.
+   provided by the client are included in the update dictionary. This guarantees
+   clean, predictable PATCH behavior and prevents accidental overwriting of
+   fields the client did not intend to modify.
 
-Overall, this schema provides safe, flexible, and fully validated partial update
-support for the Student API.
+Together, these design choices create a flexible, safe, and predictable partial
+update mechanism that integrates cleanly with the Student model and the router’s
+PATCH endpoint.
 """
-
 
 
 
@@ -31,7 +35,7 @@ from datetime import datetime
 
 
 class StudentPatch(BaseModel):
-    name: str = Field(default=None, max_length=75)
+    username: str = Field(default=None, max_length=75)
     email: str = Field(default=None, max_length=100)
     major:Optional[str] =Field(default=None,max_length=50)
     gpa: Optional[float] = Field(default=None, ge=0.0, le=4.0)

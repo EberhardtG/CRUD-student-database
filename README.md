@@ -1,20 +1,5 @@
-Grant — absolutely. I’ll rewrite your README so it **accurately reflects your final codebase**, including:
 
-- `username` instead of `name`
-- removal of `hashed_password` from the Student model
-- updated schemas
-- updated project structure
-- updated DB filename
-- updated rate‑limiting design
-- updated sanitization logic
-- updated main.py wiring
-- corrected descriptions of constraints and fields
-
-Here is your **fully updated, clean, submission‑ready README**.
-
----
-
-# **Student CRUD API – Updated README (with Authentication, Background Tasks & Custom Exceptions)**
+# **Student CRUD API – Final Updated README**
 
 ## **Overview**
 The **Student CRUD API** is a modular FastAPI application that provides:
@@ -23,6 +8,7 @@ The **Student CRUD API** is a modular FastAPI application that provides:
 - A secure authentication system using hashed passwords and JWT tokens  
 - Simulated background processing for report generation and notifications  
 - Centralized custom exception handling  
+- Security enhancements including CORS hardening, rate limiting, and input sanitization  
 - Clean separation of routers, schemas, models, and subsystems  
 
 The project demonstrates modern FastAPI design patterns using:
@@ -64,10 +50,89 @@ The project demonstrates modern FastAPI design patterns using:
 - Notification scheduling  
 - In‑memory logging of notifications  
 
+### **Security Enhancements**
+- Strict CORS configuration  
+- Custom rate‑limiting middleware  
+- Input sanitization to prevent stored XSS  
+
 ---
 
-## **Student Model**
-The SQLAlchemy Student model uses typed ORM fields and enforces database‑level constraints.
+# **Security Enhancements**
+
+## **CORS Hardening (main.py)**
+
+The application uses strict CORS configuration:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "https://your-frontend-domain.com"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+```
+
+### **Why this matters**
+- Prevents unauthorized cross‑origin access  
+- Restricts API usage to trusted frontends  
+- Reduces attack surface compared to wildcard CORS  
+
+---
+
+## **Custom Rate‑Limiting Middleware (main.py)**
+
+A simple, assignment‑compliant rate limiter tracks request timestamps per IP:
+
+- Allows **10 requests per minute**
+- Returns **429 Too Many Requests** when exceeded
+- Applies globally to all endpoints
+
+### **Testing**
+Send any endpoint (e.g., `/students`) 11 rapid requests → expect:
+
+```json
+{"detail": "Too Many Requests"}
+```
+
+---
+
+## **Input Sanitization (StudentCreate Schema)**
+
+The `StudentCreate` schema sanitizes:
+
+- `username`
+- `major`
+
+Sanitization removes:
+
+- HTML tags (including `<script>`)  
+- Leading/trailing whitespace  
+
+### **Testing**
+Submit:
+
+```json
+{
+  "username": "<script>alert('x')</script>  Grant",
+  "email": "test@example.com",
+  "major": "  <b>CS</b> "
+}
+```
+
+Expect sanitized output:
+
+```json
+{
+  "username": "Grant",
+  "email": "test@example.com",
+  "major": "CS"
+}
+```
+
+---
+
+# **Student Model**
 
 | Field     | Type         | Description |
 |-----------|--------------|-------------|
@@ -81,8 +146,7 @@ A `CheckConstraint` ensures GPA values remain within the valid academic range.
 
 ---
 
-## **Authentication System**
-The API includes a complete authentication flow using JWT tokens.
+# **Authentication System**
 
 ### **Endpoints**
 | Method | Endpoint        | Description |
@@ -99,7 +163,7 @@ Uses:
 pbkdf2_sha256
 ```
 
-instead of bcrypt to avoid Windows C‑extension issues.
+to avoid Windows bcrypt C‑extension issues.
 
 ### **JWT Tokens**
 - Signed using HS256  
@@ -109,27 +173,29 @@ instead of bcrypt to avoid Windows C‑extension issues.
 
 ---
 
-## **Pydantic Schemas**
+# **Pydantic Schemas**
+
 Implemented schemas:
 
-- `StudentCreate`  
-- `StudentUpdate`  
-- `StudentPatch`  
-- `StudentResponse`  
+- `StudentCreate` (sanitized input)  
+- `StudentUpdate` (full replacement)  
+- `StudentPatch` (partial update)  
+- `StudentResponse` (ORM → Pydantic)  
 - `UserCreate`  
 - `LoginRequest`  
 - `UserResponse`  
 - `TokenResponse`  
-- `ReportRequest` (for background tasks)
+- `ReportRequest`  
 
-Schemas use Pydantic v2 features such as:
+Schemas use Pydantic v2 features:
 
 - `model_dump(exclude_unset=True)`  
 - `from_attributes=True`  
 
 ---
 
-## **CRUD Endpoints**
+# **CRUD Endpoints**
+
 | Method | Endpoint              | Description |
 |--------|------------------------|-------------|
 | POST   | `/students`           | Create a student |
@@ -141,35 +207,27 @@ Schemas use Pydantic v2 features such as:
 
 ---
 
-## **Background Task System (`reports.py`)**
-The `reports.py` module provides simulated asynchronous processing using FastAPI’s `BackgroundTasks`.
+# **Background Task System (`reports.py`)**
 
 ### **Features**
 - In‑memory `reports` store  
 - In‑memory `notification_log`  
 - Artificial delays using `time.sleep()`  
-- Status transitions for reports  
+- Status transitions  
 - Notification scheduling  
-- JSON request body via `ReportRequest`  
 
 ### **Endpoints**
 | Method | Endpoint                         | Description |
 |--------|-----------------------------------|-------------|
-| POST   | `/reports`                        | Start report generation (async) |
+| POST   | `/reports`                        | Start report generation |
 | GET    | `/reports/{id}`                   | Retrieve report status |
 | POST   | `/reports/notifications`          | Schedule a notification |
 | GET    | `/reports/notifications/log`      | View notification history |
 
-### **Report Lifecycle**
-1. `pending`  
-2. `processing`  
-3. `complete`  
-
-A text file is written to disk to simulate a generated report artifact.
-
 ---
 
-## **Custom Exceptions (`exceptions.py`)**
+# **Custom Exceptions**
+
 Centralized error classes:
 
 - `NotFoundError` → 404  
@@ -181,7 +239,7 @@ Handled in `main.py` for consistent JSON formatting.
 
 ---
 
-## **Updated Project Structure**
+# **Project Structure**
 
 ```
 project/
@@ -214,45 +272,8 @@ project/
 
 ---
 
-## **Updated `main.py` Wiring**
-Routers are mounted cleanly:
+# **Running the Application**
 
-```python
-app.include_router(student_router)
-app.include_router(auth_router)
-app.include_router(reports_router, prefix="/reports", tags=["Reports"])
-```
-
-This ensures:
-
-- Student endpoints → `/students/...`  
-- Auth endpoints → `/auth/...`  
-- Report endpoints → `/reports/...`  
-
----
-
-## **Installation**
-
-### Clone the repository
-```
-git clone <repo-url>
-cd student-api
-```
-
-### Create a virtual environment
-```
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-### Install dependencies
-```
-pip install -r requirements.txt
-```
-
----
-
-## **Running the Application**
 ```
 uvicorn app.main:app --reload
 ```
@@ -262,8 +283,7 @@ uvicorn app.main:app --reload
 
 ---
 
-## **Testing**
-All endpoints tested via Swagger UI:
+# **Testing**
 
 - Authentication flow  
 - Protected routes  
@@ -274,10 +294,13 @@ All endpoints tested via Swagger UI:
 - Background report generation  
 - Notification scheduling  
 - Notification log retrieval  
+- Rate‑limiting behavior  
+- Sanitization behavior  
 
 ---
 
-## **Key Design Decisions**
+# **Key Design Decisions**
+
 - Centralized exception handling  
 - SQLAlchemy 2.0 typed ORM  
 - Clean schema separation  
@@ -285,9 +308,12 @@ All endpoints tested via Swagger UI:
 - In‑memory stores for easy testing  
 - Modular router organization  
 - JWT authentication for secure access  
+- CORS hardening  
+- Custom rate limiting  
+- Input sanitization  
 
 ---
 
-## **Author**
+# **Author**
 **Grant Eberhardt**
 

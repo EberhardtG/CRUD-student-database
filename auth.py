@@ -1,133 +1,78 @@
 """
 WHY:
-The auth router provides all authentication-related endpoints for the Student
-API, including registration, login, and protected user access. By separating
-authentication logic into its own router, the application maintains a clear
-boundary between security concerns and business functionality. This modular
-structure ensures that password hashing, token generation, and user validation
-are handled consistently across the entire API. The router works together with
-auth.py to enforce secure access control, allowing only authenticated users to
-reach protected routes such as /me and /dashboard.
+auth.py handles password hashing, token creation, and user authentication for
+the API. During development, bcrypt appeared installed but failed silently on
+Windows due to native C‑extension issues. These failures caused 500 errors with
+no traceback, making debugging nearly impossible. Switching to
+pbkdf2_sha256 removes the native dependency and provides stable, secure hashing
+across all platforms.
 
 DESIGN:
-1. The router is mounted under the /auth prefix, keeping all authentication
-   endpoints grouped logically and making the API easier to navigate in Swagger
-   UI. Tagging the router as "Auth" further improves documentation clarity.
+1. Use pbkdf2_sha256 via Passlib for reliable, portable password hashing that
+   avoids Windows bcrypt runtime failures.
+2. Centralize hashing and verification in helper functions to keep credential
+   logic consistent and testable.
+3. Generate JWT access tokens with HS256 and embedded expiration for secure,
+   short‑lived authentication.
+4. Validate Bearer tokens in get_current_user and load the associated Student
+   record, returning 401 for invalid or expired tokens.
+5. Print the resolved file path at import time to confirm FastAPI is loading
+   the correct module during development.
 
-2. POST /register accepts a UserCreate schema, hashes the incoming password,
-   stores the new student in the database, and returns a safe UserResponse
-   model. This ensures that sensitive fields like hashed_password are never
-   exposed in API responses.
-
-3. POST /token handles login using the LoginRequest schema. It verifies the
-   provided credentials, generates a signed JWT containing the student's ID as
-   the "sub" claim, and returns a TokenResponse. This token enables stateless
-   authentication, allowing clients to authenticate without server-side session
-   storage.
-
-4. GET /me is protected using the get_current_user dependency. The dependency
-   extracts the JWT from the Authorization header, validates it, decodes the
-   "sub" claim, and retrieves the corresponding student from the database. This
-   provides a reliable way to identify the currently authenticated user.
-
-5. GET /dashboard serves as the required additional protected endpoint. It
-   demonstrates how any route can be secured simply by depending on
-   get_current_user, ensuring that only authenticated users can access
-   privileged information or functionality.
-
-Overall, the auth router provides a clean, secure, and modular authentication
-layer for the Student API. It follows FastAPI best practices, keeps sensitive
-operations isolated, and ensures consistent behavior across all protected
-endpoints.
+This keeps authentication stable, predictable, and secure across environments.
 """
 
 
 
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from datetime import datetime, timedelta, timezone
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-
 from app.database import get_db
-from app.models.student import Student
-from app.schemas.auth import (
-    UserCreate,
-    UserResponse,
-    LoginRequest,
-    TokenResponse,
-)
-from app.auth import (
-    hash_password,
-    verify_password,
-    create_access_token,
-    get_current_user,
-)
-
-router = APIRouter(prefix="/auth", tags=["Auth"])
+from typing import Optional
+import os
+print("AUTH FILE LOADED FROM:", os.path.abspath(__file__))
 
 
-# ---------------------------------------------------------
-# REGISTER
-# ---------------------------------------------------------
-
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if username already exists
-    existing = db.query(Student).filter(Student.username == user.username).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
-        )
-
-    # Create new student
-    new_student = Student(
-        username=user.username,
-        email=user.email,
-        hashed_password=hash_password(user.password),
-    )
-
-    db.add(new_student)
-    db.commit()
-    db.refresh(new_student)
-
-    return new_student
+SECRET_KEY="CHANGE_THIS_TO_SOMETHING_SAFE"
+ALGORITHM= "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES =30
 
 
-# ---------------------------------------------------------
-# TOKEN (LOGIN)
-# ---------------------------------------------------------
-
-@router.post("/token", response_model=TokenResponse)
-def login_for_access_token(login: LoginRequest, db: Session = Depends(get_db)):
-    student = db.query(Student).filter(Student.username == login.username).first()
-
-    if not student or not verify_password(login.password, student.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-        )
-
-    # Use student.id as JWT subject
-    access_token = create_access_token(data={"sub": str(student.id)})
-
-    return TokenResponse(access_token=access_token, token_type="bearer")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+http_bearer=HTTPBearer()
 
 
-# ---------------------------------------------------------
-# CURRENT USER PROFILE
-# ---------------------------------------------------------
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
 
-@router.get("/me", response_model=UserResponse)
-def read_current_user(current_user: Student = Depends(get_current_user)):
-    return current_user
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta]=None):
+    to_encode = data.copy()
+
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(credentials: HTTPAuthorizationCredentials= Security(http_bearer), db:Session= Depends(get_db)):
+    token=credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str= payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token being used")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-# ---------------------------------------------------------
-# EXTRA PROTECTED ENDPOINT (REQUIRED BY ASSIGNMENT)
-# ---------------------------------------------------------
-
-@router.get("/dashboard")
-def dashboard(current_user: Student = Depends(get_current_user)):
-    return {
-        "message": f"Welcome to your dashboard, {current_user.username}!",
-        "user_id": current_user.id,
-    }
+    from app.models.student import Student
+    student = db.query(Student).filter(Student.id == int(user_id)).first()
+    if student is None:
+        raise HTTPException(status_code=401, detail="user not found")
+    return student

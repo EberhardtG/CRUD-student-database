@@ -29,9 +29,7 @@ DESIGN:
    keeps transactions isolated per request, and integrates cleanly with FastAPI’s
    dependency injection system.
 
-Overall, this module provides a clean, minimal, and reliable database layer that
-supports all CRUD operations in the Student API. It follows SQLAlchemy 2.0 best
-practices and keeps the project’s architecture simple and maintainable.
+
 """
 
 
@@ -60,6 +58,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 
 

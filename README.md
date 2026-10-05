@@ -1,5 +1,6 @@
 
-# **Student CRUD API – Final Updated README**
+
+# **Student CRUD API – Updated README (Documentation‑Enhanced Version)**
 
 ## **Overview**
 The **Student CRUD API** is a modular FastAPI application that provides:
@@ -9,6 +10,7 @@ The **Student CRUD API** is a modular FastAPI application that provides:
 - Background task simulation for report generation and notifications  
 - Centralized custom exception handling  
 - Security enhancements including CORS hardening, rate limiting, and input sanitization  
+- Professional API documentation using summaries, Markdown docstrings, and schema examples  
 - Clean separation of routers, schemas, models, and subsystems  
 
 The project demonstrates modern FastAPI design patterns using:
@@ -18,7 +20,7 @@ The project demonstrates modern FastAPI design patterns using:
 - **Pydantic v2**  
 - **SQLite**  
 - **JWT authentication**  
-- **BackgroundTasks** for asynchronous simulation  
+- **BackgroundTasks**  
 
 ---
 
@@ -46,21 +48,29 @@ The project demonstrates modern FastAPI design patterns using:
 
 ### **Background Tasks**
 - Asynchronous report generation  
-- Status transitions (pending → processing → complete)  
+- Status transitions  
 - Notification scheduling  
-- In‑memory logging of notifications  
+- In‑memory logging  
 
 ### **Security Enhancements**
 - Strict CORS configuration  
 - Custom rate‑limiting middleware  
-- Input sanitization to prevent stored XSS  
+- Input sanitization  
+
+### **Documentation Enhancements**
+- App‑level metadata (title, description, version)  
+- Tag descriptions for routers  
+- Markdown docstrings for all endpoints  
+- Summaries for major endpoints  
+- Documented error responses (404, 409, 422, 401, 429)  
+- `json_schema_extra` examples for all response models  
 
 ---
 
 # **Security Enhancements**
 
 ## **CORS Hardening**
-Strict CORS configuration restricts API usage to trusted frontends:
+Restricts API usage to trusted frontends:
 
 ```python
 app.add_middleware(
@@ -73,16 +83,14 @@ app.add_middleware(
 ```
 
 ## **Rate‑Limiting Middleware**
-A simple global rate limiter:
-
-- Allows **10 requests per minute per IP**
-- Returns **429 Too Many Requests** when exceeded
+- Allows **10 requests per minute per IP**  
+- Returns **429 Too Many Requests** when exceeded  
 
 ## **Input Sanitization**
-The `StudentCreate` schema strips HTML tags and whitespace from:
+`StudentCreate` removes:
 
-- `username`
-- `major`
+- HTML tags  
+- Leading/trailing whitespace  
 
 This prevents stored XSS and ensures clean data.
 
@@ -98,7 +106,7 @@ This prevents stored XSS and ensures clean data.
 | major     | String(50)   | Optional |
 | gpa       | Float        | Optional, Range 0.0–4.0 |
 
-A `CheckConstraint` ensures GPA values remain valid.
+Includes a GPA `CheckConstraint`.
 
 ---
 
@@ -113,7 +121,7 @@ A `CheckConstraint` ensures GPA values remain valid.
 | GET    | `/auth/dashboard`| Example protected route |
 
 ### **Password Hashing**
-Uses `pbkdf2_sha256` for cross‑platform compatibility.
+Uses `pbkdf2_sha256` for Windows compatibility.
 
 ### **JWT Tokens**
 - HS256 signing  
@@ -122,24 +130,26 @@ Uses `pbkdf2_sha256` for cross‑platform compatibility.
 
 ---
 
-# **Pydantic Schemas**
+# **Pydantic Schemas (v2)**
 
 Implemented schemas:
 
 - `StudentCreate`  
 - `StudentUpdate`  
 - `StudentPatch`  
-- `StudentResponse`  
+- `StudentResponse` (with `json_schema_extra` example)  
 - `UserCreate`  
 - `LoginRequest`  
-- `UserResponse`  
-- `TokenResponse`  
+- `UserResponse` (with example)  
+- `TokenResponse` (with example)  
+- `TokenData`  
 - `ReportRequest`  
 
-Schemas use Pydantic v2 features:
+Schemas use:
 
 - `model_dump(exclude_unset=True)`  
 - `from_attributes=True`  
+- `json_schema_extra` examples for documentation  
 
 ---
 
@@ -154,6 +164,12 @@ Schemas use Pydantic v2 features:
 | PATCH  | `/students/{id}`      | Partial update |
 | DELETE | `/students/{id}`      | Delete student |
 
+All endpoints include:
+
+- Markdown docstrings  
+- Summaries  
+- Documented error responses  
+
 ---
 
 # **Background Task System**
@@ -161,7 +177,7 @@ Schemas use Pydantic v2 features:
 ### **Features**
 - In‑memory report store  
 - In‑memory notification log  
-- Artificial delays using `time.sleep()`  
+- Artificial delays  
 - Status transitions  
 - Notification scheduling  
 
@@ -176,8 +192,6 @@ Schemas use Pydantic v2 features:
 ---
 
 # **Custom Exceptions**
-
-Centralized error classes:
 
 - `NotFoundError` → 404  
 - `DuplicateError` → 409  
@@ -225,22 +239,22 @@ ReDoc → [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 # **Testing Suite**
 
-The project includes a full pytest suite validating Student CRUD behavior, error handling, and input validation. Tests run against an isolated SQLite test database using FastAPI’s dependency‑override system.
+The project includes a full pytest suite validating Student CRUD behavior, error handling, and input validation.
 
 ### **Coverage**
 - Creating students (valid + invalid)  
 - Listing students  
-- Fetching by ID (valid + nonexistent)  
-- Partial updates (PATCH)  
+- Fetching by ID  
+- Partial updates  
 - Deleting students  
 - Duplicate email protection  
-- Validation errors (422)  
+- Validation errors  
 
 ### **Test Isolation**
 - Dedicated SQLite test DB  
 - Overridden `get_db` dependency  
 - Automatic table creation/teardown  
-- Rate‑limiting middleware disabled during tests  
+- Rate‑limiting disabled during tests  
 
 ### **Run Tests**
 
@@ -268,9 +282,11 @@ Expected:
 - CORS hardening  
 - Custom rate limiting  
 - Input sanitization  
-- Full pytest suite for CRUD validation  
+- Full pytest suite  
+- Professional API documentation  
 
 ---
 
 # **Author**
 **Grant Eberhardt**
+

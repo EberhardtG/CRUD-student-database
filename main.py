@@ -167,6 +167,36 @@ async def rate_limit_middleware(request: Request, call_next):
 
     return await call_next(request)
 
+#Add app-level metadata to your FastAPI instance: title, description (with Markdown formatting), version, tag descriptions for each router group
+tags_metadata = [
+    {
+        "name": "Students",
+        "description": "Operations related to student records."
+    },
+    {
+       "name": "Reports",
+       "description": "Endpoints for generating and retrieving reports."
+    },
+    {
+        "name": "Authentication",
+                "description": "Endpoints for user authentication and token management."
+    }
+]
+
+app = FastAPI(
+    title="Student Management API",
+    description="""A complete CRUD API for managing student records, with authentication and reporting features.
+This API allows you to create, read, update, and delete student records, authenticate users, and generate reports based on student data.quick start guide:
+1. Start the FastAPI server: uvicorn app.main:app --reload
+2. Access the interactive API docs at http://localhost:8000/docs
+3. Use the /students endpoints to manage student records.
+4. Use the /auth endpoints to authenticate and obtain JWT tokens.
+5. Use the /reports endpoints to generate and retrieve reports.
+6. Ensure to handle rate limits and validation errors as per the API responses.
+7.start testing the API using the provided test suite in app/tests.""",
+    version="1.0.0",
+    openapi_tags=tags_metadata
+)
 
 # Include routers
 app.include_router(student_router)

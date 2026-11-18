@@ -7,10 +7,7 @@ from pydantic import (
 
 import os
 
-print(
-    "SCHEMAS FILE LOADED FROM:",
-    os.path.abspath(__file__)
-)
+
 
 
 # ---------------------------------------------------------

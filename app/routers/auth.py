@@ -1,145 +1,78 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-)
+"""
+WHY:
+auth.py handles password hashing, token creation, and user authentication for
+the API. During development, bcrypt appeared installed but failed silently on
+Windows due to native C‑extension issues. These failures caused 500 errors with
+no traceback, making debugging nearly impossible. Switching to
+pbkdf2_sha256 removes the native dependency and provides stable, secure hashing
+across all platforms.
+
+DESIGN:
+1. Use pbkdf2_sha256 via Passlib for reliable, portable password hashing that
+   avoids Windows bcrypt runtime failures.
+2. Centralize hashing and verification in helper functions to keep credential
+   logic consistent and testable.
+3. Generate JWT access tokens with HS256 and embedded expiration for secure,
+   short‑lived authentication.
+4. Validate Bearer tokens in get_current_user and load the associated Student
+   record, returning 401 for invalid or expired tokens.
+5. Print the resolved file path at import time to confirm FastAPI is loading
+   the correct module during development.
+
+This keeps authentication stable, predictable, and secure across environments.
+"""
+
+
+
+
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from datetime import datetime, timedelta, timezone
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-
 from app.database import get_db
-from app.models.student import Student
-
-from app.schemas.auth import (
-    UserCreate,
-    UserResponse,
-    LoginRequest,
-    TokenResponse,
-)
-
-from app.auth import (
-    hash_password,
-    verify_password,
-    create_access_token,
-    get_current_user,
-)
-
-router = APIRouter(
-    prefix="/auth",
-    tags=["Auth"],
-)
+from typing import Optional
+import os
+print("AUTH FILE LOADED FROM:", os.path.abspath(__file__))
 
 
-# ---------------------------------------------------------
-# REGISTER
-# ---------------------------------------------------------
-@router.post(
-    "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def register_user(
-    user: UserCreate,
-    db: Session = Depends(get_db),
-):
-    existing = (
-        db.query(Student)
-        .filter(Student.email == user.email)
-        .first()
-    )
-
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
-        )
-
-    new_student = Student(
-        name=user.name,
-        email=user.email,
-        major=None,
-        gpa=None,
-        hashed_password=hash_password(
-            user.password
-        ),
-    )
-
-    db.add(new_student)
-    db.commit()
-    db.refresh(new_student)
-
-    return new_student
+SECRET_KEY="CHANGE_THIS_TO_SOMETHING_SAFE"
+ALGORITHM= "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES =30
 
 
-# ---------------------------------------------------------
-# TOKEN (LOGIN)
-# ---------------------------------------------------------
-@router.post(
-    "/token",
-    response_model=TokenResponse,
-)
-def login_for_access_token(
-    login: LoginRequest,
-    db: Session = Depends(get_db),
-):
-    student = (
-        db.query(Student)
-        .filter(Student.email == login.email)
-        .first()
-    )
-
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-
-    if not verify_password(
-        login.password,
-        student.hashed_password,
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-
-    access_token = create_access_token(
-        data={"sub": str(student.id)}
-    )
-
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-    )
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+http_bearer=HTTPBearer()
 
 
-# ---------------------------------------------------------
-# CURRENT USER PROFILE
-# ---------------------------------------------------------
-@router.get(
-    "/me",
-    response_model=UserResponse,
-)
-def read_current_user(
-    current_user: Student = Depends(
-        get_current_user
-    ),
-):
-    return current_user
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta]=None):
+    to_encode = data.copy()
+
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(credentials: HTTPAuthorizationCredentials= Security(http_bearer), db:Session= Depends(get_db)):
+    token=credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str= payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token being used")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-# ---------------------------------------------------------
-# PROTECTED DASHBOARD
-# ---------------------------------------------------------
-@router.get("/dashboard")
-def dashboard(
-    current_user: Student = Depends(
-        get_current_user
-    ),
-):
-    return {
-        "message": (
-            f"Welcome to your dashboard, "
-            f"{current_user.name}!"
-        ),
-        "user_id": current_user.id,
-    }
+    from app.models.student import Student
+    student = db.query(Student).filter(Student.id == int(user_id)).first()
+    if student is None:
+        raise HTTPException(status_code=401, detail="user not found")
+    return student

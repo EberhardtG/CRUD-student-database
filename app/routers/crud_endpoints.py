@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    BackgroundTasks,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -8,6 +13,11 @@ from app.schemas.studentupdate import StudentUpdate
 from app.schemas.studentpatch import StudentPatch
 from app.schemas.studentresponse import StudentResponse
 from app.exceptions import NotFoundError, DuplicateError
+
+from app.utils.notifications import (
+    log_activity,
+    send_notification,
+)
 
 router = APIRouter(
     prefix="/students",
@@ -48,6 +58,7 @@ def get_student_or_404(
 )
 def create_student(
     student: StudentCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
 
@@ -69,6 +80,17 @@ def create_student(
     db.add(db_student)
     db.commit()
     db.refresh(db_student)
+
+    # Background Tasks
+    background_tasks.add_task(
+        log_activity,
+        f"Student created: {db_student.name}"
+    )
+
+    background_tasks.add_task(
+        send_notification,
+        f"Welcome {db_student.name}"
+    )
 
     return db_student
 
@@ -229,12 +251,18 @@ def patch_student(
 @router.delete("/{student_id}")
 def delete_student(
     student_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
 
     student = get_student_or_404(
         student_id,
         db
+    )
+
+    background_tasks.add_task(
+        log_activity,
+        f"Student deleted: {student.name}"
     )
 
     db.delete(student)

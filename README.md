@@ -9,7 +9,10 @@ The project implements:
 - Full Student CRUD operations
 - JWT-based authentication
 - Password hashing using `pbkdf2_sha256`
-- Background task processing
+- Background task processing using FastAPI `BackgroundTasks`
+- Student activity logging
+- Notification scheduling
+- Report generation and tracking
 - Custom exception handling
 - Input validation and sanitization
 - CORS protection
@@ -28,6 +31,8 @@ The project implements:
 - Passlib
 - Python-JOSE (JWT)
 - Pytest
+- BackgroundTasks
+- Python Logging
 
 ---
 
@@ -162,23 +167,84 @@ when exceeded.
 
 ---
 
-## Custom Exceptions
+## Background Tasks
 
-The API uses centralized exception classes.
+The application demonstrates FastAPI BackgroundTasks in two ways:
 
-| Exception | Status Code |
-|------------|------------|
-| NotFoundError | 404 |
-| DuplicateError | 409 |
-| AppValidationError | 422 |
+### Student CRUD Background Tasks
 
-All exceptions return consistent JSON responses.
+When a student is created:
+
+- An activity log entry is written
+- A notification is scheduled
+- The API returns immediately without waiting for the notification to finish
+
+When a student is deleted:
+
+- An activity log entry is written in the background
+
+### Student Activity Logging
+
+Implemented using:
+
+```python
+log_activity()
+```
+
+Activity entries are written to:
+
+```text
+activity_log.txt
+```
+
+Example:
+
+```text
+2026-11-18 10:30:05 - Student created: Grant
+2026-11-18 10:35:22 - Student deleted: Grant
+```
+
+### Notification Processing
+
+Implemented using:
+
+```python
+send_notification()
+```
+
+Notifications simulate a delay using:
+
+```python
+time.sleep(2)
+```
+
+Notification entries are written to:
+
+```text
+notification_log.txt
+```
+
+Example:
+
+```text
+2026-11-18 10:30:07 - Welcome Grant
+```
+
+### Background Task Verification
+
+The assignment requirements are demonstrated by:
+
+- POST requests returning immediately
+- Notifications continuing after the response is returned
+- Creation activity being written to `activity_log.txt`
+- Deletion activity being written to `activity_log.txt`
+- Notifications appearing in `notification_log.txt`
 
 ---
 
-## Background Tasks
+## Reports Subsystem
 
-The reporting subsystem demonstrates asynchronous processing using FastAPI BackgroundTasks.
+The reporting subsystem demonstrates additional asynchronous processing using FastAPI BackgroundTasks.
 
 ### Endpoints
 
@@ -197,11 +263,21 @@ The reporting subsystem demonstrates asynchronous processing using FastAPI Backg
 - In-memory storage
 - Logging support
 
+### Report Status Flow
+
+```text
+pending
+   ↓
+processing
+   ↓
+complete
+```
+
 ---
 
 ## Logging
 
-The reporting subsystem logs background task activity to:
+The reports subsystem logs background task activity to:
 
 ```text
 app.log
@@ -226,21 +302,29 @@ This provides visibility into asynchronous operations and simplifies debugging.
 ```text
 app/
 ├── main.py
-├── database.py
 ├── auth.py
+├── database.py
 ├── exceptions.py
+│
 ├── models/
 │   └── student.py
+│
 ├── routers/
 │   ├── auth.py
 │   ├── crud_endpoints.py
 │   └── reports.py
+│
 ├── schemas/
 │   ├── auth.py
 │   ├── studentcreate.py
 │   ├── studentupdate.py
 │   ├── studentpatch.py
 │   └── studentresponse.py
+│
+├── utils/
+│   ├── __init__.py
+│   └── notifications.py
+│
 └── tests/
     ├── conftest.py
     └── test_students.py
@@ -284,16 +368,22 @@ Run the test suite:
 pytest -v
 ```
 
-The test suite validates:
+Expected result:
+
+```text
+8 passed
+```
+
+### Test Coverage
 
 - Student creation
-- Listing students
-- Retrieval by ID
-- Partial updates
-- Delete operations
+- Student retrieval
+- Student updates
+- Student deletion
 - Duplicate email protection
 - Validation errors
-- Exception handling
+- HTTP 404 handling
+- PATCH functionality
 
 ### Test Isolation
 
@@ -301,6 +391,23 @@ The test suite validates:
 - Dependency override for `get_db`
 - Automatic table creation and teardown
 - Rate limiting disabled during tests
+
+---
+
+## Key Design Decisions
+
+- SQLAlchemy 2.0 typed ORM
+- Pydantic v2 schemas
+- JWT authentication
+- Centralized exception handling
+- BackgroundTasks for asynchronous processing
+- Student activity logging
+- Notification scheduling
+- Report generation workflow
+- Input sanitization
+- Custom rate limiting
+- Comprehensive automated testing
+- Modular router organization
 
 ---
 

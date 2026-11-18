@@ -2,13 +2,13 @@
 
 ## Overview
 
-Student CRUD API is a modular FastAPI application that demonstrates modern backend development using FastAPI, SQLAlchemy 2.0, Pydantic v2, JWT authentication, and automated testing.
+Student CRUD API is a modular FastAPI application that demonstrates modern backend development using FastAPI, SQLAlchemy 2.0, Pydantic v2, JWT authentication, background task processing, and automated testing.
 
 The project implements:
 
 - Full Student CRUD operations
 - JWT-based authentication
-- Password hashing using pbkdf2_sha256
+- Password hashing using `pbkdf2_sha256`
 - Background task processing
 - Custom exception handling
 - Input validation and sanitization
@@ -26,7 +26,7 @@ The project implements:
 - Pydantic v2
 - SQLite
 - Passlib
-- JWT (python-jose)
+- Python-JOSE (JWT)
 - Pytest
 
 ---
@@ -35,10 +35,10 @@ The project implements:
 
 ### Student CRUD
 
-The API supports complete CRUD functionality:
+The API supports complete CRUD functionality.
 
 | Method | Endpoint | Description |
-|----------|------------|------------|
+|----------|----------|-------------|
 | POST | `/students` | Create student |
 | GET | `/students` | Retrieve all students |
 | GET | `/students/{id}` | Retrieve student by ID |
@@ -68,15 +68,14 @@ GET /students?min_gpa=3.5
 ## Student Model
 
 | Field | Type | Description |
-|---------|---------|---------|
+|---------|---------|-------------|
 | id | Integer | Primary Key |
 | name | String(75) | Required |
 | email | String(100) | Required, Unique |
 | major | String(50) | Optional |
 | gpa | Float | Optional (0.0–4.0) |
-| hashed_password | String(255) | Used for authentication |
 
-Database-level GPA validation is enforced using a SQLAlchemy CheckConstraint.
+Database-level GPA validation is enforced using a SQLAlchemy `CheckConstraint`.
 
 ---
 
@@ -129,8 +128,8 @@ pbkdf2_sha256
 ### JWT Authentication
 
 - HS256 signing
-- User ID stored in `sub`
-- Expiration included
+- User ID stored in the `sub` claim
+- Token expiration included
 
 ### Duplicate Email Protection
 
@@ -145,7 +144,7 @@ Attempts to create a student with an existing email return:
 Student creation sanitizes:
 
 - HTML tags
-- Leading/trailing whitespace
+- Leading and trailing whitespace
 
 ### CORS
 
@@ -165,7 +164,7 @@ when exceeded.
 
 ## Custom Exceptions
 
-The API uses centralized exception classes:
+The API uses centralized exception classes.
 
 | Exception | Status Code |
 |------------|------------|
@@ -184,9 +183,9 @@ The reporting subsystem demonstrates asynchronous processing using FastAPI Backg
 ### Endpoints
 
 | Method | Endpoint |
-|----------|------------|
+|----------|----------|
 | POST | `/reports` |
-| GET | `/reports/{id}` |
+| GET | `/reports/{report_id}` |
 | POST | `/reports/notifications` |
 | GET | `/reports/notifications/log` |
 
@@ -197,6 +196,28 @@ The reporting subsystem demonstrates asynchronous processing using FastAPI Backg
 - Notification scheduling
 - In-memory storage
 - Logging support
+
+---
+
+## Logging
+
+The reporting subsystem logs background task activity to:
+
+```text
+app.log
+```
+
+Logged events include:
+
+- Report generation started
+- Status transitions
+- Report completion
+- File creation
+- Notification scheduling
+- Notification delivery
+- Background task errors
+
+This provides visibility into asynchronous operations and simplifies debugging.
 
 ---
 
@@ -241,13 +262,13 @@ Run the API:
 uvicorn app.main:app --reload
 ```
 
-Swagger UI:
+### Swagger UI
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-ReDoc:
+### ReDoc
 
 ```text
 http://127.0.0.1:8000/redoc
@@ -267,17 +288,24 @@ The test suite validates:
 
 - Student creation
 - Listing students
-- Retrieve by ID
+- Retrieval by ID
 - Partial updates
 - Delete operations
 - Duplicate email protection
 - Validation errors
 - Exception handling
 
+### Test Isolation
+
+- Dedicated SQLite test database
+- Dependency override for `get_db`
+- Automatic table creation and teardown
+- Rate limiting disabled during tests
+
 ---
 
 ## Author
 
-Grant Eberhardt
+**Grant Eberhardt**
 
 Student CRUD API Project
